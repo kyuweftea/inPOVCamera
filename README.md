@@ -1,3 +1,8 @@
+# THIS IS BASED ON THE VIDEO SENSORS PROJECT
+
+original: https://github.com/e-lab/VideoSensors
+
+# README from Video sensors:
 # VideoSensors
 
 
