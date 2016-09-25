@@ -66,7 +66,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextView txt;
 
     int quality = 0;
-    int rate = 100;
+    int rate = 20;
     String timeStampFile;
     int clickFlag = 0;
     Timer timer;
@@ -84,6 +84,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         head = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
         gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        rot = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
 
         cameraPreview = (FrameLayout) findViewById(R.id.camera_preview);
 
@@ -139,6 +140,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this, head, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, rot, SensorManager.SENSOR_DELAY_GAME);
 
 
 
@@ -347,15 +349,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             }*/
 
             if(latitude != 0.0) {
-                String timeStamp = new SimpleDateFormat("HH-mm-ss").format(new Date());
+                String timeStamp = new SimpleDateFormat("HH-mm-ss-SSS").format(new Date());
                 writer.println(longitude + "," + latitude + "," + speed + "," + dist[0] + "," + timeStamp + "," + linear_acc_x + "," + linear_acc_y + "," + linear_acc_z + "," +
-                        heading + "," + gyro_x + "," + gyro_y + "," + gyro_z);
+                        heading + "," + gyro_x + "," + gyro_y + "," + gyro_z + "," + rot_x + "," + rot_y + "," + rot_z + "," + rot_t);
             }
             else{
                 dist[0] = (float) 0.0;
-                String timeStamp = new SimpleDateFormat("HH-mm-ss").format(new Date());
+                String timeStamp = new SimpleDateFormat("HH-mm-ss-SSS").format(new Date());
                 writer.println(longitude_original + "," + latitude_original + "," + speed + "," + dist[0] + "," + timeStamp + "," + linear_acc_x + "," + linear_acc_y + "," + linear_acc_z + "," +
-                        heading + "," + gyro_x + "," + gyro_y + "," + gyro_z);
+                        heading + "," + gyro_x + "," + gyro_y + "," + gyro_z + "," + rot_x + "," + rot_y + "," + rot_z + "," + rot_t);
             }
 
 
@@ -373,7 +375,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
         writer.println("Longitude" + "," + "Latitude" + "," + "Speed" + "," + "Distance" + "," + "Time" + "," + "Acc X" + "," + "Acc Y" + "," + "Acc Z" + "," + "Heading"
-                + "," + "gyro_x" + "," + "gyro_y" + "," + "gyro_z");
+                + "," + "gyro_x" + "," + "gyro_y" + "," + "gyro_z" + "," + "rot_x" + "," + "rot_y" + "," + "rot_z" + "," + "rot_t");
         LocationManager original = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         Location original_location = original.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         if(original.getLastKnownLocation(LocationManager.GPS_PROVIDER) != null){
@@ -403,6 +405,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Sensor accelerometer;
     private Sensor head;
     private Sensor gyro;
+    private Sensor rot;
     float linear_acc_x = 0;
     float linear_acc_y = 0;
     float linear_acc_z = 0;
@@ -412,6 +415,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     float gyro_x = 0;
     float gyro_y = 0;
     float gyro_z = 0;
+
+    float rot_x = 0;
+    float rot_y = 0;
+    float rot_z = 0;
+    float rot_t = 0;
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -439,6 +447,12 @@ public class MainActivity extends Activity implements SensorEventListener {
             gyro_x = event.values[0];
             gyro_y = event.values[1];
             gyro_z = event.values[2];
+        }
+        else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+            rot_x = event.values[0];
+            rot_y = event.values[1];
+            rot_z = event.values[2];
+            rot_t = event.values[3];
         }
         String setTextText = "Heading: " + heading + " Speed: " + speed;
         tv.setText(setTextText);
