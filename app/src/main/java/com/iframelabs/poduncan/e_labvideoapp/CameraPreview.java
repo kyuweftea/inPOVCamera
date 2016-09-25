@@ -1,4 +1,4 @@
-package com.example.juju.e_labvideoapp;
+package com.iframelabs.poduncan.e_labvideoapp;
 
 
 import java.io.IOException;

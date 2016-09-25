@@ -1,12 +1,10 @@
-package com.example.juju.e_labvideoapp;
+package com.iframelabs.poduncan.e_labvideoapp;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import android.app.Activity;
@@ -25,32 +23,19 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
-import android.telephony.TelephonyManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import android.text.InputType;
-import android.view.inputmethod.EditorInfo;
-import android.view.*; //?
-import android.content.Context;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
 
-import android.location.GpsStatus.Listener;
-import android.os.Bundle;
-import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 

@@ -1,4 +1,4 @@
-package com.example.juju.e_labvideoapp;
+package com.iframelabs.poduncan.e_labvideoapp;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
