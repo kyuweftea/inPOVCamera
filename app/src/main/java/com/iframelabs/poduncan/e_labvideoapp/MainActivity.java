@@ -663,13 +663,17 @@ public class MainActivity extends Activity implements SensorEventListener,
                 return;
             }
 
-            DriveId folderId = result.getDriveFolder().getDriveId();
+            DriveFolder folder = result.getDriveFolder();
 
-            showMessage("Created a folder: " + folderId);
+            mFolderDriveId = folder.getDriveId();
+            Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                    .setResultCallback(driveContentsCallbackCSV);
+            Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                    .setResultCallback(driveContentsCallbackVID);
 
             // files
-            Drive.DriveApi.fetchDriveId(getGoogleApiClient(), result.getDriveFolder().getDriveId().getResourceId())
-                    .setResultCallback(idCallback);
+//            Drive.DriveApi.fetchDriveId(getGoogleApiClient(), folderId.getResourceId())
+//                    .setResultCallback(idCallback);
         }
     };
 
@@ -682,11 +686,13 @@ public class MainActivity extends Activity implements SensorEventListener,
             }
             mFolderDriveId = result.getDriveId();
             Drive.DriveApi.newDriveContents(getGoogleApiClient())
-                    .setResultCallback(driveContentsCallback);
+                    .setResultCallback(driveContentsCallbackCSV);
+            Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                    .setResultCallback(driveContentsCallbackVID);
         }
     };
 
-    final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallback =
+    final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallbackCSV =
             new ResultCallback<DriveApi.DriveContentsResult>() {
                 @Override
                 public void onResult(DriveApi.DriveContentsResult result) {
@@ -733,7 +739,21 @@ public class MainActivity extends Activity implements SensorEventListener,
                                     .setResultCallback(fileCallback);
                         }
                     }.start();
+                }
+            };
 
+    final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallbackVID =
+            new ResultCallback<DriveApi.DriveContentsResult>() {
+                @Override
+                public void onResult(DriveApi.DriveContentsResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        showMessage("Error while trying to create new file contents");
+                        return;
+                    }
+
+                    final DriveContents driveContents = result.getDriveContents();
+                    final DriveFolder folder = mFolderDriveId.asDriveFolder();
+                    final DriveApi.DriveContentsResult resultFinal = result;
 
                     // Perform I/O off the UI thread.
                     new Thread() {
