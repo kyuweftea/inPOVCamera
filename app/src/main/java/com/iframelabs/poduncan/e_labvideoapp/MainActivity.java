@@ -1,9 +1,20 @@
 package com.iframelabs.poduncan.e_labvideoapp;
 
+import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.CharBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -11,6 +22,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
@@ -23,6 +36,7 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
@@ -36,10 +50,22 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.drive.Drive;
+import com.google.android.gms.drive.DriveApi;
+import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.DriveId;
+import com.google.android.gms.drive.MetadataChangeSet;
+
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends Activity implements SensorEventListener {
+public class MainActivity extends Activity implements SensorEventListener,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     private Camera mCamera;
     private CameraPreview mPreview;
     private MediaRecorder mediaRecorder;
@@ -59,6 +85,18 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     LocationListener locationListener;
     LocationManager LM;
+
+    String filePathCSVLocal;
+    String filePathVIDLocal;
+
+    GoogleApiClient mGoogleApiClient;
+    DriveId mFolderDriveId;
+    String timestampFileGD;
+
+    private static final String TAG = "MainActivity";
+
+    protected static final int REQUEST_CODE_RESOLUTION = 1;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,7 +128,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         String setTextText = "Heading: " + heading + " Speed: " + speed;
         tv.setText(setTextText);
 
-
+        if (mGoogleApiClient == null) {
+            mGoogleApiClient = new GoogleApiClient.Builder(MainActivity.this)
+                    .addApi(Drive.API)
+                    .addScope(Drive.SCOPE_FILE)
+                    .addScope(Drive.SCOPE_APPFOLDER) // required for App Folder sample
+                    .addConnectionCallbacks(MainActivity.this)
+                    .addOnConnectionFailedListener(MainActivity.this)
+                    .build();
+        }
     }
 
 
@@ -158,11 +204,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     protected void onPause() {
+        if (mGoogleApiClient != null) {
+            mGoogleApiClient.disconnect();
+        }
         super.onPause();
         // when on Pause, release camera in order to be used from other
         // applications
         releaseCamera();
         sensorManager.unregisterListener(this);
+
 
     }
 
@@ -203,6 +253,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                     capture.performClick();
                 }
 */
+                timestampFileGD = timeStampFile;
+
+                mGoogleApiClient.connect();
+
             } else {
                 timeStampFile = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                 File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath()+"/elab/");
@@ -273,7 +327,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         //String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
 
-        mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().getPath()+"/elab/" + timeStampFile + "/" + timeStampFile  + ".mp4");
+        filePathVIDLocal = Environment.getExternalStorageDirectory().getPath()+"/elab/" + timeStampFile + "/" + timeStampFile  + ".mp4";
+
+        mediaRecorder.setOutputFile(filePathVIDLocal);
         mediaRecorder.setVideoFrameRate(VideoFrameRate);
         //mediaRecorder.setMaxDuration(5000);
 
@@ -353,6 +409,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void storeData() {
 
         String filePath = Environment.getExternalStorageDirectory().getPath()+"/elab/" + timeStampFile + "/" + timeStampFile  +  ".csv";
+        filePathCSVLocal = filePath;
         try {
             writer = new PrintWriter(filePath);
         } catch (FileNotFoundException e) {
@@ -533,4 +590,206 @@ public class MainActivity extends Activity implements SensorEventListener {
                 });
         builder.show();
     }
+
+
+    private void showMessage(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private GoogleApiClient getGoogleApiClient() {
+        return mGoogleApiClient;
+    }
+
+
+
+    /**
+     * Handles resolution callbacks.
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode,
+                                    Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK) {
+            mGoogleApiClient.connect();
+        }
+    }
+
+
+    /**
+     * Called when {@code mGoogleApiClient} is disconnected.
+     */
+    @Override
+    public void onConnectionSuspended(int cause) {
+        Log.i(TAG, "GoogleApiClient connection suspended");
+    }
+
+    /**
+     * Called when {@code mGoogleApiClient} is trying to connect but failed.
+     * Handle {@code result.getResolution()} if there is a resolution is
+     * available.
+     */
+    @Override
+    public void onConnectionFailed(ConnectionResult result) {
+        Log.i(TAG, "GoogleApiClient connection failed: " + result.toString());
+        if (!result.hasResolution()) {
+            // show the localized error dialog.
+            GoogleApiAvailability.getInstance().getErrorDialog(this, result.getErrorCode(), 0).show();
+            return;
+        }
+        try {
+            result.startResolutionForResult(this, REQUEST_CODE_RESOLUTION);
+        } catch (IntentSender.SendIntentException e) {
+            Log.e(TAG, "Exception while starting resolution activity", e);
+        }
+    }
+
+    @Override
+    public void onConnected(Bundle connectionHint) {
+        Log.i(TAG, "GoogleApiClient connected");
+
+        // folder
+        MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                .setTitle(timeStampFile).build();/////////////////////////////////////// TODO: folder name
+        Drive.DriveApi.getRootFolder(getGoogleApiClient()).createFolder(
+                getGoogleApiClient(), changeSet).setResultCallback(callback);
+    }
+
+    final ResultCallback<DriveFolder.DriveFolderResult> callback = new ResultCallback<DriveFolder.DriveFolderResult>() {
+
+        @Override
+        public void onResult(DriveFolder.DriveFolderResult result) {
+            if (!result.getStatus().isSuccess()) {
+                showMessage("Error while trying to create the folder");
+                return;
+            }
+
+            DriveId folderId = result.getDriveFolder().getDriveId();
+
+            showMessage("Created a folder: " + folderId);
+
+            // files
+            Drive.DriveApi.fetchDriveId(getGoogleApiClient(), result.getDriveFolder().getDriveId().getResourceId())
+                    .setResultCallback(idCallback);
+        }
+    };
+
+    final private ResultCallback<DriveApi.DriveIdResult> idCallback = new ResultCallback<DriveApi.DriveIdResult>() {
+        @Override
+        public void onResult(DriveApi.DriveIdResult result) {
+            if (!result.getStatus().isSuccess()) {
+                showMessage("Cannot find DriveId. Are you authorized to view this folder?");
+                return;
+            }
+            mFolderDriveId = result.getDriveId();
+            Drive.DriveApi.newDriveContents(getGoogleApiClient())
+                    .setResultCallback(driveContentsCallback);
+        }
+    };
+
+    final private ResultCallback<DriveApi.DriveContentsResult> driveContentsCallback =
+            new ResultCallback<DriveApi.DriveContentsResult>() {
+                @Override
+                public void onResult(DriveApi.DriveContentsResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        showMessage("Error while trying to create new file contents");
+                        return;
+                    }
+
+                    final DriveContents driveContents = result.getDriveContents();
+                    final DriveFolder folder = mFolderDriveId.asDriveFolder();
+                    final DriveApi.DriveContentsResult resultFinal = result;
+
+                    // Perform I/O off the UI thread.
+                    new Thread() {
+                        @Override
+                        public void run() {
+                            // write content to DriveContents
+                            OutputStream outputStream = driveContents.getOutputStream();
+                            Writer writer = new OutputStreamWriter(outputStream);
+
+                            StringBuffer text = new StringBuffer();
+                            try {
+                                File file = new File(filePathCSVLocal);
+                                BufferedReader br = new BufferedReader(new FileReader(file));
+                                String line;
+                                while ((line = br.readLine()) != null) {
+                                    text.append(line);
+                                    text.append('\n');
+                                }
+                                br.close() ;
+
+                                writer.write(text.toString()); ////////////////////////////////TODO write csv
+                                writer.close();
+                            } catch (IOException e) {
+                                Log.e(TAG, e.getMessage());
+                            }
+
+                            MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                                    .setTitle(timeStampFile + ".csv")////////////////////////////////////TODO data file name
+                                    .setMimeType("text/csv")
+                                    .setStarred(true).build();
+
+                            folder.createFile(getGoogleApiClient(), changeSet, resultFinal.getDriveContents())
+                                    .setResultCallback(fileCallback);
+                        }
+                    }.start();
+
+
+                    // Perform I/O off the UI thread.
+                    new Thread() {
+
+                        public void pump(InputStream in, OutputStream out, int size) throws IOException {
+                            byte[] buffer = new byte[4096]; // Or whatever constant you feel like using
+                            int done = 0;
+                            while (done < size) {
+                                int read = in.read(buffer);
+                                if (read == -1) {
+                                    throw new IOException("Something went horribly wrong");
+                                }
+                                out.write(buffer, 0, read);
+                                done += read;
+                            }
+                            // Maybe put cleanup code in here if you like, e.g. in.close, out.flush, out.close
+                        }
+
+                        @Override
+                        public void run() {
+                            // write content to DriveContents
+                            OutputStream outputStream = driveContents.getOutputStream();
+                            try {
+
+                                File file = new File(filePathVIDLocal);
+                                FileInputStream fileInputStream = new FileInputStream(file);
+
+                                pump(fileInputStream, outputStream, (int) file.length());
+
+                            } catch (IOException e) {
+                                Log.e(TAG, e.getMessage());
+                            }
+
+                            MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                                    .setTitle(timeStampFile + ".mp4") //////////////////////////////TODO video file name
+                                    .setMimeType("video/h264")
+                                    .setStarred(true).build();
+
+                            folder.createFile(getGoogleApiClient(), changeSet, resultFinal.getDriveContents())
+                                    .setResultCallback(fileCallback);
+                        }
+                    }.start();
+                }
+            };
+
+    final private ResultCallback<DriveFolder.DriveFileResult> fileCallback =
+            new ResultCallback<DriveFolder.DriveFileResult>() {
+                @Override
+                public void onResult(DriveFolder.DriveFileResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        showMessage("Error while trying to create the file");
+                        return;
+                    }
+                    showMessage("Created a file: " + result.getDriveFile().getDriveId());
+                }
+            };
+
+
 }
