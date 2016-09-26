@@ -5,7 +5,7 @@ android {
     buildToolsVersion "21.1.2"
 
     defaultConfig {
-        applicationId "com.example.juju.e_labvideoapp"
+        applicationId "com.iframelabs.poduncan.e_labvideoapp"
         minSdkVersion 14
         targetSdkVersion 21
         versionCode 1
