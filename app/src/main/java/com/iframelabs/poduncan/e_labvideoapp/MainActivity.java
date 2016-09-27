@@ -793,7 +793,7 @@ public class MainActivity extends Activity implements SensorEventListener,
                                     .setStarred(true).build();
 
                             folder.createFile(getGoogleApiClient(), changeSet, resultFinal.getDriveContents())
-                                    .setResultCallback(fileCallback);
+                                    .setResultCallback(fileCallbackCLOSE);
                         }
                     }.start();
                 }
@@ -811,5 +811,17 @@ public class MainActivity extends Activity implements SensorEventListener,
                 }
             };
 
+    final private ResultCallback<DriveFolder.DriveFileResult> fileCallbackCLOSE =
+            new ResultCallback<DriveFolder.DriveFileResult>() {
+                @Override
+                public void onResult(DriveFolder.DriveFileResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        showMessage("Error while trying to create the file");
+                        return;
+                    }
+                    showMessage("Created a file: " + result.getDriveFile().getDriveId());
+                    mGoogleApiClient.disconnect();
+                }
+            };
 
 }
